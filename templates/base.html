@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Payroll Management{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="company-header">
+                <div class="logo-container">
+                    <!-- Replace src with your logo path: src="/static/logo.png" -->
+                    <!-- <img src="/static/logo.png" alt="Company Logo"> -->
+                    <div class="logo-placeholder">SC</div>
+                </div>
+                <div class="company-info">
+                    <h1>Savunadry Construction</h1>
+                    <p>Employee Payroll Management System</p>
+                </div>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('dashboard') }}">🏠 Dashboard</a></li>
+                <li><a href="{{ url_for('employees') }}">👥 Employees</a></li>
+                <li><a href="{{ url_for('attendance') }}">📋 Attendance</a></li>
+                <li><a href="{{ url_for('advance') }}">💰 Advance</a></li>
+                <li><a href="{{ url_for('weekly_payroll') }}">📊 Weekly Payroll</a></li>
+                <li><a href="{{ url_for('monthly_report') }}">📈 Monthly Report</a></li>
+            </ul>
+        </div>
+    </nav>
+    
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

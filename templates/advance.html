@@ -1,0 +1,54 @@
+<!-- ============================================ -->
+<!-- FILE: templates/advance.html -->
+<!-- ============================================ -->
+{% extends "base.html" %}
+{% block title %}Advance Payment{% endblock %}
+{% block content %}
+<h2>Record Advance Payment</h2>
+<form method="POST" class="form">
+    <div class="form-group">
+        <label>Employee:</label>
+        <select name="employee_id" required>
+            <option value="">Select Employee</option>
+            {% for emp in employees %}
+            <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.role }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Date:</label>
+        <input type="date" name="date" required>
+    </div>
+    <div class="form-group">
+        <label>Amount (₹):</label>
+        <input type="number" step="0.01" name="amount" required>
+    </div>
+    <div class="form-group">
+        <label>Reason (Optional):</label>
+        <input type="text" name="reason" placeholder="e.g. Medical emergency, Festival advance">
+    </div>
+    <button type="submit" class="btn btn-primary">Record Advance</button>
+</form>
+
+<h3>Advance Payment History</h3>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Employee</th>
+            <th>Amount (₹)</th>
+            <th>Reason</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for adv in advances %}
+        <tr>
+            <td>{{ adv.date }}</td>
+            <td>{{ adv.name }}</td>
+            <td>{{ adv.amount }}</td>
+            <td>{{ adv.reason or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

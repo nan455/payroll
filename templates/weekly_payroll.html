@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Weekly Payroll{% endblock %}
+{% block content %}
+<h2>Weekly Payroll Report</h2>
+<form method="POST" class="form-inline">
+    <label>Start Date:</label>
+    <input type="date" name="start_date" value="{{ start_date }}" required>
+    <label>End Date:</label>
+    <input type="date" name="end_date" value="{{ end_date }}" required>
+    <button type="submit" class="btn btn-primary">Calculate Payroll</button>
+</form>
+
+<h3>Payroll Period: {{ start_date }} to {{ end_date }}</h3>
+
+<div class="export-buttons">
+    <a href="{{ url_for('export_weekly_excel', start_date=start_date, end_date=end_date) }}" class="btn btn-success">
+        📊 Export to Excel
+    </a>
+    <a href="{{ url_for('export_weekly_pdf', start_date=start_date, end_date=end_date) }}" class="btn btn-danger">
+        📄 Export to PDF
+    </a>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>Role</th>
+            <th>Present Days</th>
+            <th>Daily Salary (₹)</th>
+            <th>Gross Salary (₹)</th>
+            <th>Total Advance (₹)</th>
+            <th>Net Salary (₹)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for data in payroll_data %}
+        <tr>
+            <td>{{ data.employee.name }}</td>
+            <td>{{ data.employee.role }}</td>
+            <td>{{ data.present_days }}</td>
+            <td>{{ "%.2f"|format(data.employee.daily_salary) }}</td>
+            <td>{{ "%.2f"|format(data.gross_salary) }}</td>
+            <td>{{ "%.2f"|format(data.total_advance) }}</td>
+            <td><strong>{{ "%.2f"|format(data.net_salary) }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="6" style="text-align: right;"><strong>Total Weekly Payroll:</strong></td>
+            <td><strong>₹ {{ "%.2f"|format(total_payroll) }}</strong></td>
+        </tr>
+    </tfoot>
+</table>
+{% endblock %}

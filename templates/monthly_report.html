@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Monthly Report{% endblock %}
+{% block content %}
+<h2>Monthly Salary Report</h2>
+<form method="POST" class="form-inline">
+    <label>Month:</label>
+    <select name="month" required>
+        {% for m in range(1, 13) %}
+        <option value="{{ '%02d' % m }}" {% if month == '%02d' % m %}selected{% endif %}>
+            {% if m == 1 %}January{% elif m == 2 %}February{% elif m == 3 %}March{% elif m == 4 %}April{% elif m == 5 %}May{% elif m == 6 %}June{% elif m == 7 %}July{% elif m == 8 %}August{% elif m == 9 %}September{% elif m == 10 %}October{% elif m == 11 %}November{% else %}December{% endif %}
+        </option>
+        {% endfor %}
+    </select>
+    <label>Year:</label>
+    <input type="number" name="year" value="{{ year }}" required min="2020" max="2030">
+    <button type="submit" class="btn btn-primary">Generate Report</button>
+</form>
+
+<h3>Monthly Report for {{ month }}/{{ year }}</h3>
+
+<div class="export-buttons">
+    <a href="{{ url_for('export_monthly_excel', month=month, year=year) }}" class="btn btn-success">
+        📊 Export to Excel
+    </a>
+    <a href="{{ url_for('export_monthly_pdf', month=month, year=year) }}" class="btn btn-danger">
+        📄 Export to PDF
+    </a>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>Role</th>
+            <th>Days Worked</th>
+            <th>Total Salary (₹)</th>
+            <th>Total Advance (₹)</th>
+            <th>Net Paid (₹)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for data in report_data %}
+        <tr>
+            <td>{{ data.employee.name }}</td>
+            <td>{{ data.employee.role }}</td>
+            <td>{{ data.present_days }}</td>
+            <td>{{ "%.2f"|format(data.gross_salary) }}</td>
+            <td>{{ "%.2f"|format(data.total_advance) }}</td>
+            <td><strong>{{ "%.2f"|format(data.net_amount) }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="3" style="text-align: right;"><strong>Monthly Totals:</strong></td>
+            <td><strong>₹ {{ "%.2f"|format(total_salary) }}</strong></td>
+            <td><strong>₹ {{ "%.2f"|format(total_advance) }}</strong></td>
+            <td><strong>₹ {{ "%.2f"|format(total_net) }}</strong></td>
+        </tr>
+    </tfoot>
+</table>
+{% endblock %}

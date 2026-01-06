@@ -1,0 +1,21 @@
+<!-- ============================================ -->
+<!-- FILE: templates/dashboard.html -->
+<!-- ============================================ -->
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <h2>Admin Dashboard</h2>
+    <div class="stats">
+        <div class="stat-card">
+            <h3>Total Employees</h3>
+            <p class="stat-value">{{ total_employees }}</p>
+        </div>
+    </div>
+    <div class="quick-links">
+        <a href="{{ url_for('add_employee') }}" class="btn btn-primary">Add Employee</a>
+        <a href="{{ url_for('attendance') }}" class="btn btn-primary">Mark Attendance</a>
+        <a href="{{ url_for('weekly_payroll') }}" class="btn btn-primary">View Payroll</a>
+    </div>
+</div>
+{% endblock %}

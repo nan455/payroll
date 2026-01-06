@@ -1,0 +1,43 @@
+<!-- ============================================ -->
+<!-- FILE: templates/attendance.html -->
+<!-- ============================================ -->
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block content %}
+<h2>Mark Daily Attendance</h2>
+<form method="GET" class="form-inline">
+    <label>Select Date:</label>
+    <input type="date" name="date" value="{{ date }}" onchange="this.form.submit()">
+</form>
+
+<form method="POST" class="form">
+    <input type="hidden" name="date" value="{{ date }}">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for emp in employees %}
+            <tr>
+                <td>{{ emp.id }}</td>
+                <td>{{ emp.name }}</td>
+                <td>{{ emp.role }}</td>
+                <td>
+                    <select name="status_{{ emp.id }}" required>
+                        <option value="Present" {% if attendance_dict.get(emp.id) == 'Present' %}selected{% endif %}>Present</option>
+                        <option value="Absent" {% if attendance_dict.get(emp.id) == 'Absent' %}selected{% endif %}>Absent</option>
+                    </select>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit" class="btn btn-primary">Save Attendance</button>
+</form>
+{% endblock %}
+
