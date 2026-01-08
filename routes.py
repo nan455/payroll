@@ -13,7 +13,6 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from flask import render_template, request, redirect, url_for, flash
 from models import Site, SiteWorker, MaterialCategory, SiteMaterial, MaterialPayment, SiteExpense, Employee
 from datetime import datetime
-
 def init_routes(app):
     
     @app.route('/')
@@ -757,4 +756,5 @@ def site_report(site_id):
                          total_material_paid=total_material_paid,
                          total_material_balance=total_material_balance,
                          total_expenses=total_expenses)
+
     
