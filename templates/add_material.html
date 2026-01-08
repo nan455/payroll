@@ -1,0 +1,90 @@
+<!-- ============================================ -->
+<!-- FILE: templates/add_material.html -->
+<!-- ============================================ -->
+{% extends "base.html" %}
+{% block title %}Add Material{% endblock %}
+{% block content %}
+<h2>📦 Add Material to {{ site.site_name }}</h2>
+<form method="POST" class="form">
+    <div class="form-group">
+        <label>Material Category: *</label>
+        <select name="material_category_id" required>
+            <option value="">Select Category</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.category_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label>Material Name: *</label>
+        <input type="text" name="material_name" required placeholder="e.g., JSW Portland Cement">
+    </div>
+    
+    <div class="form-group">
+        <label>Quantity: *</label>
+        <input type="number" step="0.01" name="quantity" required placeholder="e.g., 100">
+    </div>
+    
+    <div class="form-group">
+        <label>Unit: *</label>
+        <select name="unit" required>
+            <option value="Bags">Bags</option>
+            <option value="Tons">Tons</option>
+            <option value="Kg">Kg</option>
+            <option value="Pieces">Pieces</option>
+            <option value="Cubic Feet">Cubic Feet</option>
+            <option value="Square Feet">Square Feet</option>
+            <option value="Liters">Liters</option>
+            <option value="Meters">Meters</option>
+            <option value="Loads">Loads</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label>Rate per Unit (₹): *</label>
+        <input type="number" step="0.01" name="rate_per_unit" required placeholder="e.g., 350">
+    </div>
+    
+    <div class="form-group">
+        <label>Supplier Name:</label>
+        <input type="text" name="supplier_name" placeholder="e.g., ABC Traders">
+    </div>
+    
+    <div class="form-group">
+        <label>Sent Date: *</label>
+        <input type="date" name="sent_date" required value="{{ today }}">
+    </div>
+    
+    <div class="form-group">
+        <label>Bill Number:</label>
+        <input type="text" name="bill_number" placeholder="e.g., INV-2025-001">
+    </div>
+    
+    <div class="form-group">
+        <label>Notes:</label>
+        <textarea name="notes" rows="2" placeholder="Additional notes"></textarea>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Add Material</button>
+    <a href="{{ url_for('site_detail', site_id=site.id) }}" class="btn">Cancel</a>
+</form>
+
+<script>
+// Auto-calculate total cost
+document.addEventListener('DOMContentLoaded', function() {
+    const quantity = document.querySelector('[name="quantity"]');
+    const rate = document.querySelector('[name="rate_per_unit"]');
+    
+    function showTotal() {
+        if (quantity.value && rate.value) {
+            const total = parseFloat(quantity.value) * parseFloat(rate.value);
+            console.log('Total Cost: ₹' + total.toFixed(2));
+        }
+    }
+    
+    quantity.addEventListener('input', showTotal);
+    rate.addEventListener('input', showTotal);
+});
+</script>
+{% endblock %}

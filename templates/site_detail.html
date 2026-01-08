@@ -1,0 +1,176 @@
+<!-- ============================================ -->
+<!-- FILE: templates/site_detail.html -->
+<!-- ============================================ -->
+{% extends "base.html" %}
+{% block title %}{{ site.site_name }}{% endblock %}
+{% block content %}
+<h2>🏗️ {{ site.site_name }}</h2>
+
+<!-- Site Summary Cards -->
+<div class="stats">
+    <div class="stat-card">
+        <h3>Total Workers</h3>
+        <p class="stat-value">{{ site.total_workers }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Material Cost</h3>
+        <p class="stat-value">₹{{ "%.0f"|format(site.total_material_cost) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Amount Paid</h3>
+        <p class="stat-value">₹{{ "%.0f"|format(site.total_paid) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Balance Due</h3>
+        <p class="stat-value">₹{{ "%.0f"|format(site.total_balance) }}</p>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-links">
+    <a href="{{ url_for('assign_worker', site_id=site.id) }}" class="btn btn-primary">👷 Assign Worker</a>
+    <a href="{{ url_for('add_material', site_id=site.id) }}" class="btn btn-primary">📦 Add Material</a>
+    <a href="{{ url_for('add_expense', site_id=site.id) }}" class="btn btn-primary">💸 Add Expense</a>
+    <a href="{{ url_for('site_report', site_id=site.id) }}" class="btn btn-success">📊 Site Report</a>
+    <a href="{{ url_for('edit_site', site_id=site.id) }}" class="btn">✏️ Edit Site</a>
+</div>
+
+<!-- Workers Section -->
+<h3>👷 Workers at Site ({{ workers|length }})</h3>
+{% if workers %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Role at Site</th>
+            <th>Daily Salary</th>
+            <th>Assigned Date</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for worker in workers %}
+        <tr>
+            <td>{{ worker.name }}</td>
+            <td>{{ worker.employee_role }}</td>
+            <td>{{ worker.role_at_site or '-' }}</td>
+            <td>₹{{ worker.daily_salary }}</td>
+            <td>{{ worker.assigned_date }}</td>
+            <td>
+                <a href="{{ url_for('remove_worker', site_worker_id=worker.id) }}" 
+                   class="btn btn-small btn-danger"
+                   onclick="return confirm('Remove this worker from site?')">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No workers assigned yet. <a href="{{ url_for('assign_worker', site_id=site.id) }}">Assign workers</a></p>
+{% endif %}
+
+<!-- Materials Section -->
+<h3>📦 Materials Summary by Category</h3>
+{% if material_summary %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Category</th>
+            <th>Items</th>
+            <th>Total Cost (₹)</th>
+            <th>Paid (₹)</th>
+            <th>Balance (₹)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for category, data in material_summary.items() %}
+        <tr>
+            <td><strong>{{ category }}</strong></td>
+            <td>{{ data.count }}</td>
+            <td>{{ "%.2f"|format(data.total_cost) }}</td>
+            <td>{{ "%.2f"|format(data.total_paid) }}</td>
+            <td><strong>{{ "%.2f"|format(data.total_balance) }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<h3>📦 All Materials ({{ materials|length }})</h3>
+{% if materials %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Category</th>
+            <th>Material</th>
+            <th>Quantity</th>
+            <th>Rate</th>
+            <th>Total Cost</th>
+            <th>Paid</th>
+            <th>Balance</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for material in materials %}
+        <tr>
+            <td>{{ material.sent_date }}</td>
+            <td>{{ material.category_name }}</td>
+            <td>{{ material.material_name }}</td>
+            <td>{{ material.quantity }} {{ material.unit }}</td>
+            <td>₹{{ material.rate_per_unit }}</td>
+            <td>₹{{ "%.2f"|format(material.total_cost) }}</td>
+            <td>₹{{ "%.2f"|format(material.amount_paid) }}</td>
+            <td><strong>₹{{ "%.2f"|format(material.amount_balance) }}</strong></td>
+            <td>
+                <span class="status-badge status-{{ material.payment_status.lower() }}">
+                    {{ material.payment_status }}
+                </span>
+            </td>
+            <td>
+                <a href="{{ url_for('material_detail', material_id=material.id) }}" class="btn btn-small">View</a>
+                {% if material.payment_status != 'Paid' %}
+                <a href="{{ url_for('add_payment', material_id=material.id) }}" class="btn btn-small btn-success">Pay</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No materials added yet. <a href="{{ url_for('add_material', site_id=site.id) }}">Add materials</a></p>
+{% endif %}
+
+<!-- Expenses Section -->
+<h3>💸 Recent Expenses</h3>
+{% if expenses %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Amount (₹)</th>
+            <th>Paid To</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for expense in expenses[:10] %}
+        <tr>
+            <td>{{ expense.expense_date }}</td>
+            <td>{{ expense.expense_type }}</td>
+            <td>{{ expense.description or '-' }}</td>
+            <td>₹{{ "%.2f"|format(expense.amount) }}</td>
+            <td>{{ expense.paid_to or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No expenses recorded yet. <a href="{{ url_for('add_expense', site_id=site.id) }}">Record expense</a></p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,48 @@
+
+<!-- ============================================ -->
+<!-- FILE: templates/sites.html -->
+<!-- ============================================ -->
+{% extends "base.html" %}
+{% block title %}Construction Sites{% endblock %}
+{% block content %}
+<h2>🏗️ Construction Sites</h2>
+<a href="{{ url_for('add_site') }}" class="btn btn-primary">➕ Add New Site</a>
+<a href="{{ url_for('pending_payments') }}" class="btn btn-danger">💰 Pending Payments</a>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Site Name</th>
+            <th>Location</th>
+            <th>Client</th>
+            <th>Status</th>
+            <th>Budget (₹)</th>
+            <th>Start Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for site in sites %}
+        <tr>
+            <td><strong>{{ site.site_name }}</strong></td>
+            <td>{{ site.location }}</td>
+            <td>{{ site.client_name or '-' }}</td>
+            <td>
+                <span class="status-badge status-{{ site.status.lower() }}">
+                    {{ site.status }}
+                </span>
+            </td>
+            <td>{{ "%.2f"|format(site.total_budget) if site.total_budget else '-' }}</td>
+            <td>{{ site.start_date or '-' }}</td>
+            <td>
+                <a href="{{ url_for('site_detail', site_id=site.id) }}" class="btn btn-small">View Details</a>
+                <a href="{{ url_for('edit_site', site_id=site.id) }}" class="btn btn-small">Edit</a>
+                <a href="{{ url_for('delete_site', site_id=site.id) }}" 
+                   class="btn btn-small btn-danger" 
+                   onclick="return confirm('Delete this site? All data will be lost!')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

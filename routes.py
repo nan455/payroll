@@ -1,5 +1,5 @@
-from flask import render_template, request, redirect, url_for, flash, send_file
-from models import Employee, Attendance, Advance
+from flask import app, render_template, request, redirect, url_for, flash, send_file
+from models import Employee, Attendance, Advance, Site
 from datetime import datetime, timedelta
 from io import BytesIO
 import openpyxl
@@ -10,6 +10,9 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from flask import render_template, request, redirect, url_for, flash
+from models import Site, SiteWorker, MaterialCategory, SiteMaterial, MaterialPayment, SiteExpense, Employee
+from datetime import datetime
 
 def init_routes(app):
     
@@ -539,3 +542,219 @@ def init_routes(app):
             as_attachment=True,
             download_name=f'monthly_report_{month}_{year}.pdf'
         )
+    @app.route('/sites')
+    def sites():
+        sites = Site.get_all()
+    return render_template('sites.html', sites=sites)
+
+@app.route('/add_site', methods=['GET', 'POST'])
+def add_site():
+    if request.method == 'POST':
+        site_name = request.form['site_name']
+        location = request.form['location']
+        client_name = request.form.get('client_name', '')
+        start_date = request.form.get('start_date') or None
+        end_date = request.form.get('end_date') or None
+        total_budget = float(request.form.get('total_budget', 0))
+        notes = request.form.get('notes', '')
+        
+        site_id = Site.create(site_name, location, client_name, start_date, end_date, total_budget, notes)
+        if site_id:
+            flash('Site added successfully!', 'success')
+            return redirect(url_for('site_detail', site_id=site_id))
+        else:
+            flash('Error adding site!', 'error')
+    
+    return render_template('add_site.html')
+
+@app.route('/edit_site/<int:site_id>', methods=['GET', 'POST'])
+def edit_site(site_id):
+    if request.method == 'POST':
+        site_name = request.form['site_name']
+        location = request.form['location']
+        client_name = request.form.get('client_name', '')
+        start_date = request.form.get('start_date') or None
+        end_date = request.form.get('end_date') or None
+        status = request.form.get('status', 'Active')
+        total_budget = float(request.form.get('total_budget', 0))
+        notes = request.form.get('notes', '')
+        
+        if Site.update(site_id, site_name, location, client_name, start_date, end_date, status, total_budget, notes):
+            flash('Site updated successfully!', 'success')
+            return redirect(url_for('site_detail', site_id=site_id))
+        else:
+            flash('Error updating site!', 'error')
+    
+    site = Site.get_by_id(site_id)
+    return render_template('edit_site.html', site=site)
+
+@app.route('/delete_site/<int:site_id>')
+def delete_site(site_id):
+    if Site.delete(site_id):
+        flash('Site deleted successfully!', 'success')
+    else:
+        flash('Error deleting site!', 'error')
+    return redirect(url_for('sites'))
+
+@app.route('/site_detail/<int:site_id>')
+def site_detail(site_id):
+    site = Site.get_summary(site_id)
+    workers = SiteWorker.get_site_workers(site_id)
+    materials = SiteMaterial.get_site_materials(site_id)
+    expenses = SiteExpense.get_site_expenses(site_id)
+    
+    # Calculate material summary by category
+    material_summary = {}
+    for material in materials:
+        category = material['category_name']
+        if category not in material_summary:
+            material_summary[category] = {
+                'total_cost': 0,
+                'total_paid': 0,
+                'total_balance': 0,
+                'count': 0
+            }
+        material_summary[category]['total_cost'] += float(material['total_cost'])
+        material_summary[category]['total_paid'] += float(material['amount_paid'])
+        material_summary[category]['total_balance'] += float(material['amount_balance'])
+        material_summary[category]['count'] += 1
+    
+    return render_template('site_detail.html', 
+                         site=site,
+                         workers=workers,
+                         materials=materials,
+                         expenses=expenses,
+                         material_summary=material_summary)
+
+# Worker Assignment Routes
+@app.route('/assign_worker/<int:site_id>', methods=['GET', 'POST'])
+def assign_worker(site_id):
+    if request.method == 'POST':
+        employee_id = int(request.form['employee_id'])
+        assigned_date = request.form['assigned_date']
+        role_at_site = request.form.get('role_at_site', '')
+        
+        if SiteWorker.assign_worker(site_id, employee_id, assigned_date, role_at_site):
+            flash('Worker assigned successfully!', 'success')
+        else:
+            flash('Error assigning worker!', 'error')
+        
+        return redirect(url_for('site_detail', site_id=site_id))
+    
+    site = Site.get_by_id(site_id)
+    employees = Employee.get_all()
+    current_workers = SiteWorker.get_site_workers(site_id)
+    current_worker_ids = [w['employee_id'] for w in current_workers]
+    
+    # Filter out already assigned workers
+    available_employees = [e for e in employees if e['id'] not in current_worker_ids]
+    
+    return render_template('assign_worker.html', site=site, employees=available_employees)
+
+@app.route('/remove_worker/<int:site_worker_id>')
+def remove_worker(site_worker_id):
+    removed_date = datetime.now().strftime('%Y-%m-%d')
+    if SiteWorker.remove_worker(site_worker_id, removed_date):
+        flash('Worker removed from site!', 'success')
+    else:
+        flash('Error removing worker!', 'error')
+    return redirect(request.referrer or url_for('sites'))
+
+# Material Routes
+@app.route('/add_material/<int:site_id>', methods=['GET', 'POST'])
+def add_material(site_id):
+    if request.method == 'POST':
+        material_category_id = int(request.form['material_category_id'])
+        material_name = request.form['material_name']
+        quantity = float(request.form['quantity'])
+        unit = request.form['unit']
+        rate_per_unit = float(request.form['rate_per_unit'])
+        supplier_name = request.form.get('supplier_name', '')
+        sent_date = request.form['sent_date']
+        bill_number = request.form.get('bill_number', '')
+        notes = request.form.get('notes', '')
+        
+        if SiteMaterial.create(site_id, material_category_id, material_name, quantity, unit, 
+                              rate_per_unit, supplier_name, sent_date, bill_number, notes):
+            flash('Material added successfully!', 'success')
+            return redirect(url_for('site_detail', site_id=site_id))
+        else:
+            flash('Error adding material!', 'error')
+    
+    site = Site.get_by_id(site_id)
+    categories = MaterialCategory.get_all()
+    return render_template('add_material.html', site=site, categories=categories)
+
+@app.route('/material_detail/<int:material_id>')
+def material_detail(material_id):
+    material = SiteMaterial.get_by_id(material_id)
+    payments = MaterialPayment.get_material_payments(material_id)
+    return render_template('material_detail.html', material=material, payments=payments)
+
+@app.route('/add_payment/<int:material_id>', methods=['GET', 'POST'])
+def add_payment(material_id):
+    if request.method == 'POST':
+        payment_date = request.form['payment_date']
+        amount = float(request.form['amount'])
+        payment_mode = request.form.get('payment_mode', '')
+        reference_number = request.form.get('reference_number', '')
+        notes = request.form.get('notes', '')
+        
+        if MaterialPayment.create(material_id, payment_date, amount, payment_mode, reference_number, notes):
+            flash('Payment recorded successfully!', 'success')
+            return redirect(url_for('material_detail', material_id=material_id))
+        else:
+            flash('Error recording payment!', 'error')
+    
+    material = SiteMaterial.get_by_id(material_id)
+    return render_template('add_payment.html', material=material)
+
+@app.route('/pending_payments')
+def pending_payments():
+    materials = SiteMaterial.get_pending_payments()
+    return render_template('pending_payments.html', materials=materials)
+
+# Expense Routes
+@app.route('/add_expense/<int:site_id>', methods=['GET', 'POST'])
+def add_expense(site_id):
+    if request.method == 'POST':
+        expense_date = request.form['expense_date']
+        expense_type = request.form['expense_type']
+        description = request.form.get('description', '')
+        amount = float(request.form['amount'])
+        paid_to = request.form.get('paid_to', '')
+        payment_mode = request.form.get('payment_mode', '')
+        
+        if SiteExpense.create(site_id, expense_date, expense_type, description, amount, paid_to, payment_mode):
+            flash('Expense recorded successfully!', 'success')
+            return redirect(url_for('site_detail', site_id=site_id))
+        else:
+            flash('Error recording expense!', 'error')
+    
+    site = Site.get_by_id(site_id)
+    return render_template('add_expense.html', site=site)
+
+# Site Report Routes
+@app.route('/site_report/<int:site_id>')
+def site_report(site_id):
+    site = Site.get_summary(site_id)
+    workers = SiteWorker.get_site_workers(site_id)
+    materials = SiteMaterial.get_site_materials(site_id)
+    expenses = SiteExpense.get_site_expenses(site_id)
+    
+    # Calculate totals
+    total_material_cost = sum(float(m['total_cost']) for m in materials)
+    total_material_paid = sum(float(m['amount_paid']) for m in materials)
+    total_material_balance = sum(float(m['amount_balance']) for m in materials)
+    total_expenses = sum(float(e['amount']) for e in expenses)
+    
+    return render_template('site_report.html',
+                         site=site,
+                         workers=workers,
+                         materials=materials,
+                         expenses=expenses,
+                         total_material_cost=total_material_cost,
+                         total_material_paid=total_material_paid,
+                         total_material_balance=total_material_balance,
+                         total_expenses=total_expenses)
+    
