@@ -5,6 +5,7 @@
 from database import get_db, dict_cursor
 from database import get_db
 from datetime import datetime
+from psycopg2.extras import RealDictCursor
 
 class Employee:
     @staticmethod
@@ -293,7 +294,7 @@ class Site:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('SELECT * FROM sites ORDER BY created_at DESC')
             sites = cursor.fetchall()
@@ -307,7 +308,7 @@ class Site:
         conn = get_db()
         if not conn:
             return None
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('SELECT * FROM sites WHERE id = %s', (site_id,))
             site = cursor.fetchone()
@@ -321,7 +322,7 @@ class Site:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute("SELECT * FROM sites WHERE status = 'Active' ORDER BY site_name")
             sites = cursor.fetchall()
@@ -374,7 +375,7 @@ class Site:
         conn = get_db()
         if not conn:
             return None
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('''
                 SELECT 
@@ -443,7 +444,7 @@ class SiteWorker:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('''
                 SELECT sw.*, e.name, e.role as employee_role, e.daily_salary
@@ -464,7 +465,7 @@ class MaterialCategory:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('SELECT * FROM material_categories ORDER BY category_name')
             categories = cursor.fetchall()
@@ -507,7 +508,7 @@ class SiteMaterial:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('''
                 SELECT sm.*, mc.category_name
@@ -527,7 +528,7 @@ class SiteMaterial:
         conn = get_db()
         if not conn:
             return None
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('''
                 SELECT sm.*, mc.category_name, s.site_name
@@ -547,7 +548,7 @@ class SiteMaterial:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             if site_id:
                 cursor.execute('''
@@ -634,7 +635,7 @@ class MaterialPayment:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             cursor.execute('''
                 SELECT * FROM material_payments
@@ -675,7 +676,7 @@ class SiteExpense:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             if start_date and end_date:
                 cursor.execute('''
