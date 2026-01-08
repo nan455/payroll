@@ -1,4 +1,8 @@
-from database import get_db
+ #============================================
+# FILE 4: models.py (PostgreSQL Version)
+# ============================================
+
+from database import get_db, dict_cursor
 
 class Employee:
     @staticmethod
@@ -26,7 +30,7 @@ class Employee:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = dict_cursor(conn)
         try:
             cursor.execute('SELECT * FROM employees ORDER BY id DESC')
             employees = cursor.fetchall()
@@ -40,7 +44,7 @@ class Employee:
         conn = get_db()
         if not conn:
             return None
-        cursor = conn.cursor(dictionary=True)
+        cursor = dict_cursor(conn)
         try:
             cursor.execute('SELECT * FROM employees WHERE id = %s', (emp_id,))
             employee = cursor.fetchone()
@@ -93,7 +97,7 @@ class Employee:
             return 0
         cursor = conn.cursor()
         try:
-            cursor.execute('SELECT COUNT(*) as count FROM employees')
+            cursor.execute('SELECT COUNT(*) FROM employees')
             count = cursor.fetchone()[0]
             return count
         finally:
@@ -111,8 +115,9 @@ class Attendance:
             cursor.execute(
                 '''INSERT INTO attendance (employee_id, date, status) 
                    VALUES (%s, %s, %s)
-                   ON DUPLICATE KEY UPDATE status = %s''',
-                (employee_id, date, status, status)
+                   ON CONFLICT (employee_id, date) 
+                   DO UPDATE SET status = EXCLUDED.status''',
+                (employee_id, date, status)
             )
             conn.commit()
             return True
@@ -128,7 +133,7 @@ class Attendance:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = dict_cursor(conn)
         try:
             cursor.execute('''
                 SELECT a.*, e.name, e.role 
@@ -150,7 +155,7 @@ class Attendance:
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                SELECT COUNT(*) as present_days
+                SELECT COUNT(*) 
                 FROM attendance
                 WHERE employee_id = %s AND date BETWEEN %s AND %s AND status = 'Present'
             ''', (employee_id, start_date, end_date))
@@ -168,11 +173,11 @@ class Attendance:
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                SELECT COUNT(*) as present_days
+                SELECT COUNT(*) 
                 FROM attendance
                 WHERE employee_id = %s 
-                AND MONTH(date) = %s 
-                AND YEAR(date) = %s
+                AND EXTRACT(MONTH FROM date) = %s 
+                AND EXTRACT(YEAR FROM date) = %s
                 AND status = 'Present'
             ''', (employee_id, month, year))
             result = cursor.fetchone()
@@ -207,7 +212,7 @@ class Advance:
         conn = get_db()
         if not conn:
             return []
-        cursor = conn.cursor(dictionary=True)
+        cursor = dict_cursor(conn)
         try:
             cursor.execute('''
                 SELECT a.*, e.name 
@@ -229,12 +234,12 @@ class Advance:
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                SELECT COALESCE(SUM(amount), 0) as total_advance
+                SELECT COALESCE(SUM(amount), 0)
                 FROM advances
                 WHERE employee_id = %s AND date BETWEEN %s AND %s
             ''', (employee_id, start_date, end_date))
             result = cursor.fetchone()
-            return result[0] if result else 0
+            return float(result[0]) if result else 0
         finally:
             cursor.close()
             conn.close()
@@ -247,14 +252,14 @@ class Advance:
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                SELECT COALESCE(SUM(amount), 0) as total_advance
+                SELECT COALESCE(SUM(amount), 0)
                 FROM advances
                 WHERE employee_id = %s 
-                AND MONTH(date) = %s 
-                AND YEAR(date) = %s
+                AND EXTRACT(MONTH FROM date) = %s 
+                AND EXTRACT(YEAR FROM date) = %s
             ''', (employee_id, month, year))
             result = cursor.fetchone()
-            return result[0] if result else 0
+            return float(result[0]) if result else 0
         finally:
             cursor.close()
             conn.close()
