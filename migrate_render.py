@@ -1,7 +1,7 @@
 import psycopg2
 
 # REPLACE THIS with your COMPLETE Render database URL
-DATABASE_URL = "postgresql://postgres:[YOUR-PASSWORD]@db.vbyjraeiotloqsxrbgef.supabase.co:5432/postgres"
+DATABASE_URL = "postgresql://payroll_user:94cLCR2pQBrzaxsv5yn1UqMJaf7jd5Dl@dpg-d5fjpanpm1nc73df8mf0-a.oregon-postgres.render.com/payroll_system_oln3"
 
 print("🔄 Connecting to Render database...")
 
