@@ -1,7 +1,3 @@
- #============================================
-# FILE 4: models.py (PostgreSQL Version)
-# ============================================
-
 from database import get_db, dict_cursor
 from database import get_db
 from datetime import datetime
@@ -277,13 +273,17 @@ class Site:
         try:
             cursor.execute(
                 '''INSERT INTO sites (site_name, location, client_name, start_date, 
-                   end_date, total_budget, notes) VALUES (%s, %s, %s, %s, %s, %s, %s)''',
+                   end_date, total_budget, notes) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)
+                   RETURNING id''',
                 (site_name, location, client_name, start_date, end_date, total_budget, notes)
             )
+            site_id = cursor.fetchone()[0]
             conn.commit()
-            return cursor.lastrowid
+            return site_id
         except Exception as e:
             print(f"Error: {e}")
+            conn.rollback()
             return False
         finally:
             cursor.close()
@@ -413,6 +413,7 @@ class SiteWorker:
             return True
         except Exception as e:
             print(f"Error: {e}")
+            conn.rollback()
             return False
         finally:
             cursor.close()
@@ -489,15 +490,18 @@ class SiteMaterial:
                    (site_id, material_category_id, material_name, quantity, unit, 
                     rate_per_unit, total_cost, supplier_name, sent_date, bill_number, 
                     amount_balance, notes)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   RETURNING id''',
                 (site_id, material_category_id, material_name, quantity, unit, 
                  rate_per_unit, total_cost, supplier_name, sent_date, bill_number, 
                  total_cost, notes)
             )
+            material_id = cursor.fetchone()[0]
             conn.commit()
-            return cursor.lastrowid
+            return material_id
         except Exception as e:
             print(f"Error: {e}")
+            conn.rollback()
             return False
         finally:
             cursor.close()
@@ -628,7 +632,6 @@ class MaterialPayment:
             cursor.close()
             conn.close()
 
-    
     @staticmethod
     def get_material_payments(material_id):
         conn = get_db()
@@ -652,6 +655,7 @@ class MaterialPayment:
             conn.close()
 
 
+class SiteExpense:
     @staticmethod
     def create(site_id, expense_date, expense_type, description, amount, paid_to, payment_mode):
         conn = get_db()
