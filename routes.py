@@ -12,6 +12,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from database import get_db
+from psycopg2.extras import RealDictCursor
 
 def init_routes(app):
     
@@ -678,7 +679,7 @@ def init_routes(app):
             flash('Database connection error!', 'error')
             return redirect(url_for('employees'))
         
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Attendance details
         cursor.execute('''
@@ -759,7 +760,7 @@ def init_routes(app):
         
         # Get all data (same as above)
         conn = get_db()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         cursor.execute('''
             SELECT date, status
