@@ -650,44 +650,32 @@ def init_routes(app):
                              total_material_paid=total_material_paid,
                              total_material_balance=total_material_balance,
                              total_expenses=total_expenses)
+    
+
     @app.route('/employee_report/<int:emp_id>')
     def employee_report(emp_id):
-        """View individual employee's complete report"""
-        
-        # Get employee details
+
         employee = Employee.get_by_id(emp_id)
         if not employee:
             flash('Employee not found!', 'error')
             return redirect(url_for('employees'))
-        
-        # Get date range (default: current month)
+
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
-        
+
         if not start_date or not end_date:
             today = datetime.now()
             start_date = today.replace(day=1).strftime('%Y-%m-%d')
-            # Last day of month
-            if today.month == 12:
-                end_date = today.replace(day=31).strftime('%Y-%m-%d')
-            else:
-                end_date = (today.replace(month=today.month + 1, day=1) - timedelta(days=1)).strftime('%Y-%m-%d')
-        
-        # Get attendance records
+            end_date = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1)).strftime('%Y-%m-%d')
+
         conn = get_db()
-        if not conn:
-            flash('Database connection error!', 'error')
-            return redirect(url_for('employees'))
-        
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Attendance details
-        cursor.execute('''
-            SELECT date, status
-            FROM attendance
-            WHERE employee_id = %s AND date BETWEEN %s AND %s
+
+        cursor.execute("""
+            SELECT date, status FROM attendance
+            WHERE employee_id=%s AND date BETWEEN %s AND %s
             ORDER BY date DESC
-        ''', (emp_id, start_date, end_date))
+        """, (emp_id, start_date, end_date))
         attendance_records = cursor.fetchall()
 
         present_days = sum(1 for r in attendance_records if r["status"] == "Present")
@@ -698,52 +686,50 @@ def init_routes(app):
             SELECT date, amount, reason FROM advances
             WHERE employee_id=%s AND date BETWEEN %s AND %s
             ORDER BY date DESC
-        ''', (emp_id, start_date, end_date))
+        """, (emp_id, start_date, end_date))
         advances = cursor.fetchall()
-        
-        total_advance = sum(float(adv['amount']) for adv in advances)
+
+        total_advance = sum(float(a["amount"]) for a in advances)
         net_salary = gross_salary - total_advance
-        
-        # Get sites where employee is working
-        cursor.execute('''
+
+        cursor.execute("""
             SELECT s.id, s.site_name, s.location, sw.assigned_date, sw.role_at_site
             FROM site_workers sw
             JOIN sites s ON sw.site_id = s.id
-            WHERE sw.employee_id = %s AND sw.is_active = TRUE
-        ''', (emp_id,))
+            WHERE sw.employee_id=%s AND sw.is_active=true
+        """, (emp_id,))
         current_sites = cursor.fetchall()
-        
-        # Calculate monthly breakdown
-        cursor.execute('''
-                SELECT 
-                    DATE_FORMAT(date, '%%Y-%%m') AS month,
-                    SUM(status = 'Present') AS present,
-                    SUM(status = 'Absent') AS absent
-                FROM attendance
-                WHERE employee_id = %s
-                GROUP BY DATE_FORMAT(date, '%%Y-%%m')
-                ORDER BY month DESC
-                LIMIT 6
-            ''', (emp_id,))
 
+        cursor.execute("""
+            SELECT 
+                to_char(date, 'YYYY-MM') AS month,
+                SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) AS present,
+                SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) AS absent
+            FROM attendance
+            WHERE employee_id=%s
+            GROUP BY month
+            ORDER BY month DESC
+            LIMIT 6
+        """, (emp_id,))
         monthly_stats = cursor.fetchall()
-        
+
         cursor.close()
         conn.close()
-        
-        return render_template('employee_report.html',
-                            employee=employee,
-                            start_date=start_date,
-                            end_date=end_date,
-                            attendance_records=attendance_records,
-                            present_days=present_days,
-                            absent_days=absent_days,
-                            gross_salary=gross_salary,
-                            advances=advances,
-                            total_advance=total_advance,
-                            net_salary=net_salary,
-                            current_sites=current_sites,
-                            monthly_stats=monthly_stats)
+
+        return render_template("employee_report.html",
+            employee=employee,
+            start_date=start_date,
+            end_date=end_date,
+            attendance_records=attendance_records,
+            present_days=present_days,
+            absent_days=absent_days,
+            gross_salary=gross_salary,
+            advances=advances,
+            total_advance=total_advance,
+            net_salary=net_salary,
+            current_sites=current_sites,
+            monthly_stats=monthly_stats)
+
 
     @app.route('/employee_report_pdf/<int:emp_id>')
     def employee_report_pdf(emp_id):
