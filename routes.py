@@ -460,20 +460,22 @@ def init_routes(app):
         if request.method == 'POST':
             site_name = request.form['site_name']
             location = request.form['location']
-            client_name = request.form.get('client_name', '')
+            client_name = request.form.get('client_name','')
             start_date = request.form.get('start_date') or None
             end_date = request.form.get('end_date') or None
-            total_budget = float(request.form.get('total_budget', 0))
-            notes = request.form.get('notes', '')
-            
-            site_id = Site.create(site_name, location, client_name, start_date, end_date, total_budget, notes)
+            total_budget = float(request.form.get('total_budget',0))
+            notes = request.form.get('notes','')
+
+            site_id = Site.create(site_name, location, client_name,
+                                start_date, end_date, total_budget, notes)
+
             if site_id:
-                flash('Site added successfully!', 'success')
-                return redirect(url_for('site_detail', site_id=site_id))
+                flash("Site added successfully","success")
+                return redirect(url_for("site_detail", site_id=site_id))
             else:
-                flash('Error adding site!', 'error')
-        
-        return render_template('add_site.html')
+                flash("Error adding site","error")
+
+        return render_template("add_site.html")
     
     @app.route('/edit_site/<int:site_id>', methods=['GET', 'POST'])
     def edit_site(site_id):
