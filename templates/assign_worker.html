@@ -1,0 +1,176 @@
+<!-- ============================================ -->
+<!-- FILE: templates/assign_worker.html -->
+<!-- ============================================ -->
+{% extends 'base.html' %}
+
+{% block title %}Assign Worker - {{ site.site_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Assign Worker to Site</h2>
+    <a href="{{ url_for('site_detail', site_id=site.id) }}" class="btn btn-secondary">← Back to Site</a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Site: {{ site.site_name }}</h3>
+        <p>Location: {{ site.location }}</p>
+    </div>
+    
+    <form method="POST" class="form">
+        <div class="form-group">
+            <label for="employee_id">Select Employee *</label>
+            <select name="employee_id" id="employee_id" required class="form-control">
+                <option value="">-- Choose Employee --</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.role }})</option>
+                {% endfor %}
+            </select>
+            {% if not employees %}
+            <p class="text-muted">All employees are already assigned to this site or no employees available.</p>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="assigned_date">Assignment Date *</label>
+            <input type="date" name="assigned_date" id="assigned_date" required 
+                   value="{{ request.form.assigned_date or '' }}" class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label for="role_at_site">Role at Site</label>
+            <input type="text" name="role_at_site" id="role_at_site" 
+                   value="{{ request.form.role_at_site or '' }}" 
+                   placeholder="e.g., Supervisor, Mason, Helper" class="form-control">
+            <small class="text-muted">Optional: Specify the role for this specific site</small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" {% if not employees %}disabled{% endif %}>
+                Assign Worker
+            </button>
+            <a href="{{ url_for('site_detail', site_id=site.id) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.card-header h3 {
+    margin: 0 0 5px 0;
+    color: #2c3e50;
+}
+
+.card-header p {
+    margin: 0;
+    color: #7f8c8d;
+}
+
+.form {
+    max-width: 600px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.text-muted {
+    color: #7f8c8d;
+    font-size: 13px;
+    margin-top: 5px;
+    display: block;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    transition: background-color 0.3s;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+.btn-primary:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #7f8c8d;
+}
+</style>
+
+<script>
+// Set today's date as default
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('assigned_date');
+    if (!dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+});
+</script>
+{% endblock %}
