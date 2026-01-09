@@ -548,31 +548,40 @@ class SiteMaterial:
         conn = get_db()
         if not conn:
             return []
+
         cursor = conn.cursor(cursor_factory=RealDictCursor)
+
         try:
             if site_id:
-                cursor.execute('''
+                cursor.execute("""
                     SELECT sm.*, mc.category_name, s.site_name
                     FROM site_materials sm
                     JOIN material_categories mc ON sm.material_category_id = mc.id
                     JOIN sites s ON sm.site_id = s.id
-                    WHERE sm.site_id = %s AND sm.payment_status != 'Paid'
+                    WHERE sm.site_id = %s
+                    AND (sm.payment_status IS NULL OR sm.payment_status <> 'Paid')
                     ORDER BY sm.sent_date DESC
-                ''', (site_id,))
+                """, (site_id,))
             else:
-                cursor.execute('''
+                cursor.execute("""
                     SELECT sm.*, mc.category_name, s.site_name
                     FROM site_materials sm
                     JOIN material_categories mc ON sm.material_category_id = mc.id
                     JOIN sites s ON sm.site_id = s.id
-                    WHERE sm.payment_status != 'Paid'
+                    WHERE (sm.payment_status IS NULL OR sm.payment_status <> 'Paid')
                     ORDER BY sm.sent_date DESC
-                ''')
-            materials = cursor.fetchall()
-            return materials
+                """)
+
+            return cursor.fetchall()
+
+        except Exception as e:
+            print("get_pending_payments error:", e)
+            return []
+
         finally:
             cursor.close()
             conn.close()
+
 
 class MaterialPayment:
     @staticmethod
@@ -580,119 +589,123 @@ class MaterialPayment:
         conn = get_db()
         if not conn:
             return False
+
         cursor = conn.cursor()
         try:
-            # Insert payment
-            cursor.execute(
-                '''INSERT INTO material_payments 
-                   (site_material_id, payment_date, amount, payment_mode, reference_number, notes)
-                   VALUES (%s, %s, %s, %s, %s, %s)''',
+            cursor.execute("""
+                INSERT INTO material_payments
                 (site_material_id, payment_date, amount, payment_mode, reference_number, notes)
-            )
-            
-            # Update material payment status
-            cursor.execute('''
-                UPDATE site_materials sm
-                SET 
-                    amount_paid = COALESCE((
-                        SELECT SUM(amount) 
-                        FROM material_payments 
-                        WHERE site_material_id = sm.id
-                    ), 0),
-                    amount_balance = sm.total_cost - COALESCE((
-                        SELECT SUM(amount) 
-                        FROM material_payments 
-                        WHERE site_material_id = sm.id
-                    ), 0),
+                VALUES (%s,%s,%s,%s,%s,%s)
+            """, (site_material_id, payment_date, amount, payment_mode, reference_number, notes))
+
+            cursor.execute("""
+                WITH total AS (
+                    SELECT COALESCE(SUM(amount),0) AS paid
+                    FROM material_payments
+                    WHERE site_material_id = %s
+                )
+                UPDATE site_materials
+                SET
+                    amount_paid = total.paid,
+                    amount_balance = total_cost - total.paid,
                     payment_status = CASE
-                        WHEN COALESCE((
-                            SELECT SUM(amount) 
-                            FROM material_payments 
-                            WHERE site_material_id = sm.id
-                        ), 0) = 0 THEN 'Pending'
-                        WHEN COALESCE((
-                            SELECT SUM(amount) 
-                            FROM material_payments 
-                            WHERE site_material_id = sm.id
-                        ), 0) < sm.total_cost THEN 'Partial'
+                        WHEN total.paid = 0 THEN 'Pending'
+                        WHEN total.paid < total_cost THEN 'Partial'
                         ELSE 'Paid'
                     END
-                WHERE sm.id = %s
-            ''', (site_material_id,))
-            
+                FROM total
+                WHERE id = %s
+            """, (site_material_id, site_material_id))
+
             conn.commit()
             return True
+
         except Exception as e:
-            print(f"Error: {e}")
+            print("MaterialPayment.create error:", e)
             conn.rollback()
             return False
         finally:
             cursor.close()
             conn.close()
+
     
     @staticmethod
     def get_material_payments(material_id):
         conn = get_db()
         if not conn:
             return []
+
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
-            cursor.execute('''
-                SELECT * FROM material_payments
+            cursor.execute("""
+                SELECT id, payment_date, amount, payment_mode, reference_number, notes
+                FROM material_payments
                 WHERE site_material_id = %s
                 ORDER BY payment_date DESC
-            ''', (material_id,))
-            payments = cursor.fetchall()
-            return payments
+            """, (material_id,))
+            return cursor.fetchall()
+        except Exception as e:
+            print("get_material_payments error:", e)
+            return []
         finally:
             cursor.close()
             conn.close()
 
-class SiteExpense:
+
     @staticmethod
     def create(site_id, expense_date, expense_type, description, amount, paid_to, payment_mode):
         conn = get_db()
         if not conn:
             return False
+
         cursor = conn.cursor()
         try:
-            cursor.execute(
-                '''INSERT INTO site_expenses 
-                   (site_id, expense_date, expense_type, description, amount, paid_to, payment_mode)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s)''',
+            cursor.execute("""
+                INSERT INTO site_expenses
                 (site_id, expense_date, expense_type, description, amount, paid_to, payment_mode)
-            )
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
+            """, (site_id, expense_date, expense_type, description, amount, paid_to, payment_mode))
+
             conn.commit()
             return True
         except Exception as e:
-            print(f"Error: {e}")
+            print("SiteExpense.create error:", e)
+            conn.rollback()
             return False
         finally:
             cursor.close()
             conn.close()
-    
+
     @staticmethod
     def get_site_expenses(site_id, start_date=None, end_date=None):
         conn = get_db()
         if not conn:
             return []
+
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             if start_date and end_date:
-                cursor.execute('''
-                    SELECT * FROM site_expenses
+                cursor.execute("""
+                    SELECT id, expense_date, expense_type, description,
+                        amount, paid_to, payment_mode
+                    FROM site_expenses
                     WHERE site_id = %s AND expense_date BETWEEN %s AND %s
                     ORDER BY expense_date DESC
-                ''', (site_id, start_date, end_date))
+                """, (site_id, start_date, end_date))
             else:
-                cursor.execute('''
-                    SELECT * FROM site_expenses
+                cursor.execute("""
+                    SELECT id, expense_date, expense_type, description,
+                        amount, paid_to, payment_mode
+                    FROM site_expenses
                     WHERE site_id = %s
                     ORDER BY expense_date DESC
                     LIMIT 50
-                ''', (site_id,))
-            expenses = cursor.fetchall()
-            return expenses
+                """, (site_id,))
+
+            return cursor.fetchall()
+        except Exception as e:
+            print("get_site_expenses error:", e)
+            return []
         finally:
             cursor.close()
             conn.close()
