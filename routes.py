@@ -11,6 +11,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
+from database import get_db
 
 def init_routes(app):
     
@@ -677,7 +678,7 @@ def init_routes(app):
             flash('Database connection error!', 'error')
             return redirect(url_for('employees'))
         
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor(dictionary=True)
         
         # Attendance details
         cursor.execute('''
@@ -718,16 +719,17 @@ def init_routes(app):
         
         # Calculate monthly breakdown
         cursor.execute('''
-            SELECT 
-                DATE_FORMAT(date, '%%Y-%%m') as month,
-                COUNT(CASE WHEN status = 'Present' THEN 1 END) as present,
-                COUNT(CASE WHEN status = 'Absent' THEN 1 END) as absent
-            FROM attendance
-            WHERE employee_id = %s
-            GROUP BY DATE_FORMAT(date, '%%Y-%%m')
-            ORDER BY month DESC
-            LIMIT 6
-        ''', (emp_id,))
+                SELECT 
+                    DATE_FORMAT(date, '%%Y-%%m') AS month,
+                    SUM(status = 'Present') AS present,
+                    SUM(status = 'Absent') AS absent
+                FROM attendance
+                WHERE employee_id = %s
+                GROUP BY DATE_FORMAT(date, '%%Y-%%m')
+                ORDER BY month DESC
+                LIMIT 6
+            ''', (emp_id,))
+
         monthly_stats = cursor.fetchall()
         
         cursor.close()
@@ -757,7 +759,7 @@ def init_routes(app):
         
         # Get all data (same as above)
         conn = get_db()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor(dictionary=True)
         
         cursor.execute('''
             SELECT date, status
