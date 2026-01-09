@@ -648,3 +648,226 @@ def init_routes(app):
                              total_material_paid=total_material_paid,
                              total_material_balance=total_material_balance,
                              total_expenses=total_expenses)
+    @app.route('/employee_report/<int:emp_id>')
+    def employee_report(emp_id):
+        """View individual employee's complete report"""
+        
+        # Get employee details
+        employee = Employee.get_by_id(emp_id)
+        if not employee:
+            flash('Employee not found!', 'error')
+            return redirect(url_for('employees'))
+        
+        # Get date range (default: current month)
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            today = datetime.now()
+            start_date = today.replace(day=1).strftime('%Y-%m-%d')
+            # Last day of month
+            if today.month == 12:
+                end_date = today.replace(day=31).strftime('%Y-%m-%d')
+            else:
+                end_date = (today.replace(month=today.month + 1, day=1) - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        # Get attendance records
+        conn = get_db()
+        if not conn:
+            flash('Database connection error!', 'error')
+            return redirect(url_for('employees'))
+        
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Attendance details
+        cursor.execute('''
+            SELECT date, status
+            FROM attendance
+            WHERE employee_id = %s AND date BETWEEN %s AND %s
+            ORDER BY date DESC
+        ''', (emp_id, start_date, end_date))
+        attendance_records = cursor.fetchall()
+        
+        # Count present/absent days
+        present_days = sum(1 for rec in attendance_records if rec['status'] == 'Present')
+        absent_days = sum(1 for rec in attendance_records if rec['status'] == 'Absent')
+        
+        # Calculate salary
+        gross_salary = present_days * float(employee['daily_salary'])
+        
+        # Get advances in this period
+        cursor.execute('''
+            SELECT date, amount, reason
+            FROM advances
+            WHERE employee_id = %s AND date BETWEEN %s AND %s
+            ORDER BY date DESC
+        ''', (emp_id, start_date, end_date))
+        advances = cursor.fetchall()
+        
+        total_advance = sum(float(adv['amount']) for adv in advances)
+        net_salary = gross_salary - total_advance
+        
+        # Get sites where employee is working
+        cursor.execute('''
+            SELECT s.id, s.site_name, s.location, sw.assigned_date, sw.role_at_site
+            FROM site_workers sw
+            JOIN sites s ON sw.site_id = s.id
+            WHERE sw.employee_id = %s AND sw.is_active = TRUE
+        ''', (emp_id,))
+        current_sites = cursor.fetchall()
+        
+        # Calculate monthly breakdown
+        cursor.execute('''
+            SELECT 
+                DATE_FORMAT(date, '%%Y-%%m') as month,
+                COUNT(CASE WHEN status = 'Present' THEN 1 END) as present,
+                COUNT(CASE WHEN status = 'Absent' THEN 1 END) as absent
+            FROM attendance
+            WHERE employee_id = %s
+            GROUP BY DATE_FORMAT(date, '%%Y-%%m')
+            ORDER BY month DESC
+            LIMIT 6
+        ''', (emp_id,))
+        monthly_stats = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return render_template('employee_report.html',
+                            employee=employee,
+                            start_date=start_date,
+                            end_date=end_date,
+                            attendance_records=attendance_records,
+                            present_days=present_days,
+                            absent_days=absent_days,
+                            gross_salary=gross_salary,
+                            advances=advances,
+                            total_advance=total_advance,
+                            net_salary=net_salary,
+                            current_sites=current_sites,
+                            monthly_stats=monthly_stats)
+
+    @app.route('/employee_report_pdf/<int:emp_id>')
+    def employee_report_pdf(emp_id):
+        """Export employee report to PDF"""
+        
+        employee = Employee.get_by_id(emp_id)
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # Get all data (same as above)
+        conn = get_db()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute('''
+            SELECT date, status
+            FROM attendance
+            WHERE employee_id = %s AND date BETWEEN %s AND %s
+            ORDER BY date
+        ''', (emp_id, start_date, end_date))
+        attendance_records = cursor.fetchall()
+        
+        present_days = sum(1 for rec in attendance_records if rec['status'] == 'Present')
+        gross_salary = present_days * float(employee['daily_salary'])
+        
+        cursor.execute('''
+            SELECT date, amount, reason
+            FROM advances
+            WHERE employee_id = %s AND date BETWEEN %s AND %s
+            ORDER BY date
+        ''', (emp_id, start_date, end_date))
+        advances = cursor.fetchall()
+        
+        total_advance = sum(float(adv['amount']) for adv in advances)
+        net_salary = gross_salary - total_advance
+        
+        cursor.close()
+        conn.close()
+        
+        # Create PDF
+        output = BytesIO()
+        doc = SimpleDocTemplate(output, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'],
+                                    fontSize=18, spaceAfter=10, alignment=TA_CENTER)
+        
+        elements.append(Paragraph('SAVUNADRY CONSTRUCTION', title_style))
+        elements.append(Paragraph('Employee Salary Report', styles['Heading2']))
+        elements.append(Spacer(1, 20))
+        
+        # Employee Details
+        emp_data = [
+            ['Employee Name:', employee['name']],
+            ['Employee ID:', str(employee['id'])],
+            ['Role:', employee['role']],
+            ['Daily Salary:', f"₹{employee['daily_salary']:.2f}"],
+            ['Period:', f"{start_date} to {end_date}"]
+        ]
+        
+        emp_table = Table(emp_data, colWidths=[2*inch, 4*inch])
+        emp_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0f0f0')),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(emp_table)
+        elements.append(Spacer(1, 20))
+        
+        # Salary Summary
+        summary_data = [
+            ['Description', 'Amount'],
+            ['Present Days', str(present_days)],
+            ['Gross Salary', f"₹{gross_salary:.2f}"],
+            ['Total Advance', f"₹{total_advance:.2f}"],
+            ['Net Salary', f"₹{net_salary:.2f}"]
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 3*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E7E6E6')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(summary_table)
+        
+        doc.build(elements)
+        output.seek(0)
+        
+        return send_file(output, mimetype='application/pdf', as_attachment=True,
+                        download_name=f'employee_report_{employee["name"]}_{start_date}.pdf')
+
+    @app.route('/all_employees_summary')
+    def all_employees_summary():
+        """Summary report of all employees"""
+        
+        # Get date range (default: current month)
+        month = request.args.get('month', f'{datetime.now().month:02d}')
+        year = request.args.get('year', str(datetime.now().year))
+        
+        employees = Employee.get_all()
+        employee_summaries = []
+        
+        for emp in employees:
+            present_days = Attendance.get_month_attendance(emp['id'], month, year)
+            gross_salary = present_days * emp['daily_salary']
+            total_advance = Advance.get_month_advance(emp['id'], month, year)
+            net_salary = float(gross_salary) - float(total_advance)
+            
+            employee_summaries.append({
+                'employee': emp,
+                'present_days': present_days,
+                'gross_salary': float(gross_salary),
+                'total_advance': float(total_advance),
+                'net_salary': net_salary
+            })
+        
+        return render_template('all_employees_summary.html',
+                            employee_summaries=employee_summaries,
+                            month=month,
+                            year=year)

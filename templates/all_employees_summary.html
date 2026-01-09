@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}All Employees Summary{% endblock %}
+{% block content %}
+
+<h2>👥 All Employees Salary Summary</h2>
+
+<!-- Month/Year Selector -->
+<form method="GET" class="form-inline">
+    <label>Month:</label>
+    <select name="month" required>
+        {% for m in range(1, 13) %}
+        <option value="{{ '%02d' % m }}" {% if month == '%02d' % m %}selected{% endif %}>
+            {% if m == 1 %}January{% elif m == 2 %}February{% elif m == 3 %}March{% elif m == 4 %}April{% elif m == 5 %}May{% elif m == 6 %}June{% elif m == 7 %}July{% elif m == 8 %}August{% elif m == 9 %}September{% elif m == 10 %}October{% elif m == 11 %}November{% else %}December{% endif %}
+        </option>
+        {% endfor %}
+    </select>
+    <label>Year:</label>
+    <input type="number" name="year" value="{{ year }}" required min="2020" max="2030" style="width: 100px;">
+    <button type="submit" class="btn btn-primary">View Summary</button>
+</form>
+
+<h3>Summary for {{ month }}/{{ year }}</h3>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>Role</th>
+            <th>Daily Salary</th>
+            <th>Present Days</th>
+            <th>Gross Salary</th>
+            <th>Advance</th>
+            <th>Net Salary</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for summary in employee_summaries %}
+        <tr>
+            <td><strong>{{ summary.employee.name }}</strong></td>
+            <td>{{ summary.employee.role }}</td>
+            <td>₹{{ summary.employee.daily_salary }}</td>
+            <td>{{ summary.present_days }}</td>
+            <td>₹{{ "%.2f"|format(summary.gross_salary) }}</td>
+            <td>₹{{ "%.2f"|format(summary.total_advance) }}</td>
+            <td><strong>₹{{ "%.2f"|format(summary.net_salary) }}</strong></td>
+            <td>
+                <a href="{{ url_for('employee_report', emp_id=summary.employee.id) }}" class="btn btn-small">View Full Report</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="4" style="text-align: right;"><strong>TOTAL:</strong></td>
+            <td><strong>₹{{ "%.2f"|format(employee_summaries|sum(attribute='gross_salary')) }}</strong></td>
+            <td><strong>₹{{ "%.2f"|format(employee_summaries|sum(attribute='total_advance')) }}</strong></td>
+            <td><strong>₹{{ "%.2f"|format(employee_summaries|sum(attribute='net_salary')) }}</strong></td>
+            <td></td>
+        </tr>
+    </tfoot>
+</table>
+
+{% endblock %}

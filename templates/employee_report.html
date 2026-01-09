@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}{{ employee.name }} - Report{% endblock %}
+{% block content %}
+
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>👷 Employee Report: {{ employee.name }}</h2>
+    <a href="{{ url_for('employees') }}" class="btn">← Back to Employees</a>
+</div>
+
+<!-- Employee Info Card -->
+<div style="background: linear-gradient(135deg, var(--primary-green) 0%, var(--light-green) 100%); color: white; padding: 30px; border-radius: 15px; margin: 20px 0; border: 3px solid var(--primary-gold);">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <div>
+            <strong style="color: var(--accent-yellow);">Employee ID:</strong><br>
+            <span style="font-size: 24px;">{{ employee.id }}</span>
+        </div>
+        <div>
+            <strong style="color: var(--accent-yellow);">Role:</strong><br>
+            <span style="font-size: 24px;">{{ employee.role }}</span>
+        </div>
+        <div>
+            <strong style="color: var(--accent-yellow);">Daily Salary:</strong><br>
+            <span style="font-size: 24px;">₹{{ employee.daily_salary }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Date Range Selector -->
+<form method="GET" class="form-inline">
+    <label>Start Date:</label>
+    <input type="date" name="start_date" value="{{ start_date }}" required>
+    <label>End Date:</label>
+    <input type="date" name="end_date" value="{{ end_date }}" required>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <a href="{{ url_for('employee_report_pdf', emp_id=employee.id, start_date=start_date, end_date=end_date) }}" class="btn btn-danger">📄 Export PDF</a>
+</form>
+
+<!-- Summary Cards -->
+<div class="stats">
+    <div class="stat-card">
+        <h3>Present Days</h3>
+        <p class="stat-value">{{ present_days }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Absent Days</h3>
+        <p class="stat-value">{{ absent_days }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Gross Salary</h3>
+        <p class="stat-value">₹{{ "%.0f"|format(gross_salary) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Total Advance</h3>
+        <p class="stat-value">₹{{ "%.0f"|format(total_advance) }}</p>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, var(--primary-gold) 0%, var(--light-gold) 100%);">
+        <h3>Net Salary</h3>
+        <p class="stat-value" style="color: var(--dark-green);">₹{{ "%.0f"|format(net_salary) }}</p>
+    </div>
+</div>
+
+<!-- Current Sites Assigned -->
+{% if current_sites %}
+<h3>🏗️ Currently Working at Sites</h3>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Site Name</th>
+            <th>Location</th>
+            <th>Role at Site</th>
+            <th>Assigned Date</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for site in current_sites %}
+        <tr>
+            <td><strong>{{ site.site_name }}</strong></td>
+            <td>{{ site.location }}</td>
+            <td>{{ site.role_at_site or '-' }}</td>
+            <td>{{ site.assigned_date }}</td>
+            <td><a href="{{ url_for('site_detail', site_id=site.id) }}" class="btn btn-small">View Site</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+    ⚠️ Not currently assigned to any site
+</p>
+{% endif %}
+
+<!-- Attendance Records -->
+<h3>📋 Attendance Details ({{ start_date }} to {{ end_date }})</h3>
+{% if attendance_records %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Day</th>
+            <th>Status</th>
+            <th>Salary Earned</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for record in attendance_records %}
+        <tr>
+            <td>{{ record.date }}</td>
+            <td>{{ record.date.strftime('%A') if record.date.strftime else '-' }}</td>
+            <td>
+                <span class="status-badge status-{{ record.status.lower() }}">
+                    {{ record.status }}
+                </span>
+            </td>
+            <td>
+                {% if record.status == 'Present' %}
+                    ₹{{ employee.daily_salary }}
+                {% else %}
+                    ₹0
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="2"><strong>Total Present Days:</strong></td>
+            <td><strong>{{ present_days }}</strong></td>
+            <td><strong>₹{{ "%.2f"|format(gross_salary) }}</strong></td>
+        </tr>
+    </tfoot>
+</table>
+{% else %}
+<p style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
+    ℹ️ No attendance records for this period
+</p>
+{% endif %}
+
+<!-- Advances Taken -->
+<h3>💰 Advances Taken ({{ start_date }} to {{ end_date }})</h3>
+{% if advances %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Reason</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for advance in advances %}
+        <tr>
+            <td>{{ advance.date }}</td>
+            <td><strong>₹{{ "%.2f"|format(advance.amount) }}</strong></td>
+            <td>{{ advance.reason or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td><strong>Total Advance:</strong></td>
+            <td colspan="2"><strong>₹{{ "%.2f"|format(total_advance) }}</strong></td>
+        </tr>
+    </tfoot>
+</table>
+{% else %}
+<p style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+    ✅ No advances taken in this period
+</p>
+{% endif %}
+
+<!-- Salary Calculation Summary -->
+<div style="background: white; padding: 30px; border-radius: 15px; border: 3px solid var(--primary-gold); margin-top: 30px;">
+    <h3 style="color: var(--primary-green); margin-top: 0;">💵 Salary Calculation</h3>
+    <table style="width: 100%; font-size: 18px;">
+        <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 15px;"><strong>Present Days:</strong></td>
+            <td style="text-align: right; padding: 15px;">{{ present_days }} days</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 15px;"><strong>Daily Salary:</strong></td>
+            <td style="text-align: right; padding: 15px;">₹{{ employee.daily_salary }}</td>
+        </tr>
+        <tr style="border-bottom: 2px solid var(--primary-green);">
+            <td style="padding: 15px;"><strong>Gross Salary:</strong></td>
+            <td style="text-align: right; padding: 15px;"><strong>₹{{ "%.2f"|format(gross_salary) }}</strong></td>
+        </tr>
+        <tr style="border-bottom: 2px solid var(--primary-green);">
+            <td style="padding: 15px;"><strong>Less: Advance:</strong></td>
+            <td style="text-align: right; padding: 15px; color: #dc3545;"><strong>- ₹{{ "%.2f"|format(total_advance) }}</strong></td>
+        </tr>
+        <tr style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);">
+            <td style="padding: 20px; font-size: 22px;"><strong style="color: var(--dark-green);">NET SALARY PAYABLE:</strong></td>
+            <td style="text-align: right; padding: 20px; font-size: 28px;"><strong style="color: var(--primary-green);">₹{{ "%.2f"|format(net_salary) }}</strong></td>
+        </tr>
+    </table>
+</div>
+
+<!-- Monthly Performance -->
+{% if monthly_stats %}
+<h3>📊 Last 6 Months Performance</h3>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Month</th>
+            <th>Present Days</th>
+            <th>Absent Days</th>
+            <th>Attendance Rate</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for stat in monthly_stats %}
+        <tr>
+            <td>{{ stat.month }}</td>
+            <td>{{ stat.present }}</td>
+            <td>{{ stat.absent }}</td>
+            <td>
+                {% set total = stat.present + stat.absent %}
+                {% if total > 0 %}
+                    {{ "%.1f"|format((stat.present / total) * 100) }}%
+                {% else %}
+                    0%
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% endblock %}
