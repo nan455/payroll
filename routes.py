@@ -689,19 +689,14 @@ def init_routes(app):
             ORDER BY date DESC
         ''', (emp_id, start_date, end_date))
         attendance_records = cursor.fetchall()
-        
-        # Count present/absent days
-        present_days = sum(1 for rec in attendance_records if rec['status'] == 'Present')
-        absent_days = sum(1 for rec in attendance_records if rec['status'] == 'Absent')
-        
-        # Calculate salary
-        gross_salary = present_days * float(employee['daily_salary'])
-        
-        # Get advances in this period
-        cursor.execute('''
-            SELECT date, amount, reason
-            FROM advances
-            WHERE employee_id = %s AND date BETWEEN %s AND %s
+
+        present_days = sum(1 for r in attendance_records if r["status"] == "Present")
+        absent_days = sum(1 for r in attendance_records if r["status"] == "Absent")
+        gross_salary = present_days * float(employee["daily_salary"])
+
+        cursor.execute("""
+            SELECT date, amount, reason FROM advances
+            WHERE employee_id=%s AND date BETWEEN %s AND %s
             ORDER BY date DESC
         ''', (emp_id, start_date, end_date))
         advances = cursor.fetchall()
